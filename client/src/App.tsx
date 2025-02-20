@@ -1,33 +1,102 @@
-import { useState } from "react";
+import { useState, useCallback } from 'react'
 import "./App.css";
+import React from 'react';
 
 function App() {
-  const [count, setCount] = useState(0);
+    const [world, setWorld] = useState<string[][]>([]);
+    const [seed, setSeed] = useState(() => Date.now());
+    const [dimension, setDimension] = useState(25);
+    const [error, setError] = useState<string | null>(null);
+    const onSubmit = useCallback(() => {
+        setError(null);
+        fetch(
+            "/gen?" + new URLSearchParams({
+                seed: String(seed),
+                dimension: String(dimension),
+            }),
+        ).then(async (r) => {
+            if (r.ok) return r;
+            throw new Error(await r.text());
+        }).then((r) => r.json()).then(setWorld).catch((e) => setError(e.message));
+    }, [seed, dimension]);
+    return (
+        <>
+            <h1>Dun-Gen</h1>
+            <p>A dungeon generator</p>
+            <p>Assets courtesy of <a href='https://www.kenney.nl' target='_blank'>kenney.nl</a></p>
+            {error}
+            <br />
+            <br />
 
-  return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src="/vite.svg" className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src="/react.svg" className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count: number) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  );
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                <div>
+                    <label htmlFor="seed" style={{ marginInlineEnd: "4px" }}>Seed:</label>
+                    <input
+                        id="seed"
+                        type="number"
+                        value={seed}
+                        onChange={(e) => setSeed(+e.target.value)}
+                    />
+                </div>
+                <div>
+                    <label htmlFor="dimension" style={{ marginInlineEnd: "4px" }}>
+                        World size:
+                    </label>
+                    <input
+                        id="dimension"
+                        name="dimension"
+                        type="number"
+                        value={dimension}
+                        onChange={(e) => setDimension(+e.target.value)}
+                    />
+                </div>
+                <button type="submit" onClick={onSubmit}>Generate!</button>
+            </div>
+
+            <div
+                style={{
+                    display: "grid",
+                    width: (16 * dimension) + "px",
+                    height: (16 * dimension) + "px",
+                    gap: 0,
+                    gridTemplateColumns: `repeat(${dimension}, 1fr)`,
+                    gridTemplateRows: `repeat(${dimension}, 1fr)`,
+                    outline: "1px solid green",
+                }}
+            >
+                {world.map((options: string[], i: number) => (
+                    <div
+                        style={{
+                            fontSize: "16px",
+                            height: "16px",
+                            width: "16px",
+                            margin: 0,
+                            lineHeight: "1rem",
+                            padding: 0,
+                        }}
+                        key={i}
+                    >
+                        {options.length === 1 && options[0].startsWith("/")
+                            ? <img src={options[0]} />
+                            : <ManyOptions options={options} />}
+                    </div>
+                ))}
+            </div>
+        </>
+    );
+}
+
+function ManyOptions({ options }: { options: string[] }) {
+    return (
+        <div
+            onClick={(e) => {
+                e.stopPropagation();
+                console.log(options);
+            }}
+        >
+            {options.length}
+        </div>
+    );
 }
 
 export default App;
