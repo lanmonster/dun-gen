@@ -3,10 +3,11 @@ import Cell from "./cell.ts";
 import random_in_range from "../util/random_in_range.ts";
 import Tile from "../tile/tile.ts";
 import { RNG } from "../types.ts";
+import all_tiles from "../tile/all_tiles.ts";
 
 // guaranteed random by fair dice roll
 const rng: RNG = () => 4;
-const testTile: () => Tile = () => new Tile("x", [0, 0, 0, 0]);
+const testTile: () => Tile = () => new Tile("x", 1, [0, 0, 0, 0]);
 
 Deno.test("must have at least one option", () => {
   expect(() => new Cell(rng, [])).toThrow();
@@ -43,7 +44,7 @@ Deno.test("renders entropy", () => {
   expect(cell.render()).toEqual(String(number_of_options));
 });
 
-Deno.test("if there is only one option, render it's value", () => {
+Deno.test("if there is only one option, render its value", () => {
   const number_of_options = 1;
   const cell = new Cell(
     rng,
@@ -53,24 +54,35 @@ Deno.test("if there is only one option, render it's value", () => {
 });
 
 Deno.test("reduces options based on neighbor cell", () => {
-  const cell = new Cell(
-    rng,
-    [new Tile(" ", [0, 0, 0, 0])],
-  );
-  const neighbor = new Cell(
-    rng,
-    [
-      new Tile(" ", [0, 0, 0, 0]),
-      new Tile("┃", [1, 0, 1, 0]),
-      new Tile("━", [0, 1, 0, 1]),
-      new Tile("┏", [0, 1, 1, 0]),
-      new Tile("┓", [0, 0, 1, 1]),
-      new Tile("┗", [1, 1, 0, 0]),
-      new Tile("┛", [1, 0, 0, 1]),
-      new Tile("▉", [1, 1, 1, 1]),
-    ],
-  );
+  const cell = new Cell(rng, [all_tiles.ph]);
+  const neighbor = new Cell(rng, [...Object.values(all_tiles)]);
   neighbor.constrain(cell, "NORTH");
-  expect(neighbor.options()).toEqual([" ", "━", "┗", "┛"]);
+  expect(neighbor.options()).toEqual([
+    all_tiles.blank,
+    all_tiles.cactus,
+    all_tiles.cactus2,
+    all_tiles.bush,
+    all_tiles.ph,
+    all_tiles.path_turn_ne,
+    all_tiles.path_turn_wn,
+    all_tiles.t_n,
+    all_tiles.wall_bl,
+    all_tiles.wall_b,
+    all_tiles.wall_br,
+  ].map((t) => t.value));
 });
 
+Deno.test("reduces options based on neighbor cell", () => {
+  const cell = new Cell(rng, [all_tiles.x]);
+  const neighbor = new Cell(rng, [...Object.values(all_tiles)]);
+  neighbor.constrain(cell, "SOUTH");
+  expect(neighbor.options()).toEqual([
+    all_tiles.pv,
+    all_tiles.path_turn_ne,
+    all_tiles.path_turn_wn,
+    all_tiles.x,
+    all_tiles.t_n,
+    all_tiles.t_e,
+    all_tiles.t_w,
+  ].map((t) => t.value));
+});
