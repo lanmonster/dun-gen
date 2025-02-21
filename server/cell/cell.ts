@@ -1,56 +1,75 @@
-import all_tiles from "../tile/all_tiles.ts";
+import weighted_random from "../rng/weighted_random.ts";
 import Tile from "../tile/tile.ts";
 import { Direction, RNG } from "../types.ts";
-import random_in_range from "../util/random_in_range.ts";
 
+const OPPOSITES: Map<Direction, Direction> = new Map(
+  [
+    ["NORTH", "SOUTH"],
+    ["SOUTH", "NORTH"],
+    ["EAST", "WEST"],
+    ["WEST", "EAST"],
+  ],
+);
 export default class Cell {
   #rng: RNG;
   #options: Tile[];
-  constructor(rng: RNG,  options: Tile[]) {
+  #neighbors: Partial<Record<Direction, Cell>>;
+  constructor(rng: RNG, options: Tile[]) {
     if (options.length === 0) {
       throw new Error(`Cells must be created with at least one option`);
     }
+    this.#neighbors = {};
     this.#rng = rng;
     this.#options = options;
   }
+
   get entropy(): number {
     return this.#options.length;
   }
+
   get is_collapsed(): boolean {
-    return this.entropy === 1;
+    return this.entropy <= 1;
   }
+
+  add_neighbor(cell: Cell, direction: Direction) {
+    this.#neighbors[direction] = cell;
+  }
+
+  neighbors(): [Direction, Cell][] {
+    return Object.entries(this.#neighbors) as [Direction, Cell][];
+  }
+
   render(): string {
     if (this.is_collapsed) {
       return this.#options[0].value;
     }
     return String(this.entropy);
   }
+
   options(): string[] {
     return this.#options.map((o) => o.value);
   }
+
   collapse() {
-    const choice = random_in_range(this.#rng, {
-      min: 0,
-      max: this.#options.length - 1,
-    });
-       this.#options = [
-      this.#options.length === 0 ? all_tiles.blank : this.#options[choice],
+    const choice = weighted_random(
+      this.#rng,
+      this.#options.map((o) => o.weight),
+    );
+    this.#options = [
+      this.#options[choice],
     ];
   }
-  constrain(cell: Cell, direction: Direction): boolean {
-    const results = [];
-    if (cell.#options.length === 0) {
-      throw new Error(`cell has no options!`);
-    }
-    if (this.#options.length === 0) {
-      //throw new Error(`I have no options!`);
-    }
-    for (const option of this.#options) {
-      for (const cell_option of cell.#options) {
-        if (cell_option.fits(option, direction)) {
-          results.push(option);
-        }
-      }
+
+  constrain(neighbor: Cell, direction: Direction): boolean {
+    if (this.is_collapsed) return false;
+    const neighbor_sockets = new Set(
+      neighbor.#options.map((o) => o.socket(direction)),
+    );
+    const results = this.#options.filter((o) =>
+      neighbor_sockets.has(o.socket(OPPOSITES.get(direction)!))
+    );
+    if (results.length === 0) {
+      throw new Error("start again");
     }
     const did_constrain = results.length < this.#options.length;
     this.#options = results;
